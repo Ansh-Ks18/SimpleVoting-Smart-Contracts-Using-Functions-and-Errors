@@ -1,0 +1,97 @@
+/*
+ TASKS:
+  
+Smart Contract Project
+For this project, write a smart contract that implements the require(), assert() and revert() statements.
+*/
+
+//code implementation
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract SimpleVoting {
+    // Events to log important actions
+    event ProposalCreated(uint256 proposalId, string description);
+    event Voted(address indexed voter, uint256 proposalId, bool vote);
+    event ProposalFinalized(uint256 proposalId, bool accepted);
+
+    // Structure to define a proposal
+    struct Proposal {
+        string description;         // Description of the proposal
+        uint256 voteCountYes;       // Number of "yes" votes
+        uint256 voteCountNo;        // Number of "no" votes
+        bool finalized;             // Flag indicating if the proposal is finalized
+        mapping(address => bool) voters; // Mapping to track who has voted
+    }
+
+    // Storage for all proposals and total count
+    mapping(uint256 => Proposal) public proposals;
+    uint256 public proposalCount;   // Total number of proposals
+
+    // Function to create a new proposal
+    function createProposal(string memory description) public {
+        proposalCount++;    // Increment proposal count
+        Proposal storage newProposal = proposals[proposalCount]; // Create new proposal
+        newProposal.description = description; // Set proposal description
+
+        emit ProposalCreated(proposalCount, description); // Emit event for proposal creation
+    }
+
+    // Function to allow voting on a proposal
+    function vote(uint256 proposalId, bool voteYes) public {
+        Proposal storage proposal = proposals[proposalId]; // Retrieve proposal
+
+        // Check conditions before allowing vote
+        require(bytes(proposal.description).length > 0, "Proposal does not exist"); // Ensure proposal exists
+        require(!proposal.finalized, "Proposal is already finalized"); // Ensure proposal is not finalized
+        require(!proposal.voters[msg.sender], "You have already voted"); // Ensure sender has not voted
+
+        // Record the vote
+        if (voteYes) {
+            proposal.voteCountYes++; // Increment "yes" votes
+        } else {
+            proposal.voteCountNo++; // Increment "no" votes
+        }
+
+        proposal.voters[msg.sender] = true; // Mark sender as voted
+
+        emit Voted(msg.sender, proposalId, voteYes); // Emit event for voting
+    }
+
+    // Function to finalize a proposal
+    function finalizeProposal(uint256 proposalId) public {
+        Proposal storage proposal = proposals[proposalId]; // Retrieve proposal
+
+        // Check conditions before finalizing
+        require(bytes(proposal.description).length > 0, "Proposal does not exist"); // Ensure proposal exists
+        require(!proposal.finalized, "Proposal is already finalized"); // Ensure proposal is not already finalized
+
+        proposal.finalized = true; // Mark proposal as finalized
+
+        // Determine if the proposal is accepted based on votes
+        bool accepted = proposal.voteCountYes > proposal.voteCountNo;
+        emit ProposalFinalized(proposalId, accepted); // Emit event for proposal finalization
+    }
+
+    // Function to retrieve the result of a proposal
+    function getResult(uint256 proposalId) public view returns (string memory description, uint256 yesVotes, uint256 noVotes, bool finalized) {
+        Proposal storage proposal = proposals[proposalId]; // Retrieve proposal
+
+        require(bytes(proposal.description).length > 0, "Proposal does not exist"); // Ensure proposal exists
+
+        // Return proposal details
+        description = proposal.description;
+        yesVotes = proposal.voteCountYes;
+        noVotes = proposal.voteCountNo;
+        finalized = proposal.finalized;
+    }
+
+    // Function to cancel a proposal
+    function cancelProposal(uint256 proposalId) public {
+        Proposal storage proposal = proposals[proposalId]; // Retrieve proposal
+
+        require(bytes(proposal.description).length > 0, "Proposal does not exist"); // Ensure proposal exists
+
+        delete proposals[proposalId]; // Delete proposal from storage
+    }
+}
